@@ -22,7 +22,7 @@ def simulate_live_traffic():
             ''', (customer_id, "192.168.1.1", status, latency, bandwidth))
             
             conn.commit()
-            time.sleep(5) # Add a new log every 5 seconds
+            time.sleep(5) 
     except KeyboardInterrupt:
         print("Simulation stopped.")
     finally:

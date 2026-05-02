@@ -10,7 +10,7 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Table 1: Simulated Live Network Logs (from Kaggle)
+    # Table 1:Here we Simulated Live Network Logs (from Kaggle)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS network_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,7 +23,7 @@ def init_db():
         )
     ''')
     
-    # Table 2: Chat History (For professional session management)
+    # Table 2: here we store Chat History 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS chat_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

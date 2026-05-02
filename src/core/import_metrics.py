@@ -10,7 +10,7 @@ def import_traffic_to_sql(csv_path):
     conn = sqlite3.connect("data/network_ops.db")
     df = pd.read_csv(csv_path)
     
-    # 📝 Mapping your specific Kaggle columns to our DB schema
+    # here Mapping the specific Kaggle columns to  DB schema
     column_mapping = {
         'latency': 'latency_ms',
         'bandwidth_usage': 'bandwidth_mbps',
@@ -24,15 +24,15 @@ def import_traffic_to_sql(csv_path):
         df_filtered = df[list(column_mapping.keys())].copy()
         df_filtered.rename(columns=column_mapping, inplace=True)
         
-        # Add a dummy device_ip since the CSV doesn't have one (for simulation)
+        # Add a dummy device_ip since the CSV doesn't have one (it is for the simulation)
         df_filtered['device_ip'] = "192.168.1.1"
 
-        # Import top 1000 rows to the database
+        # we Import the top 1000 rows to the database
         df_filtered.head(1000).to_sql("network_logs", conn, if_exists="replace", index=False)
-        print(f"✅ Success! Imported {len(df_filtered.head(1000))} rows with network metrics.")
+        print(f" Success! Imported {len(df_filtered.head(1000))} rows with network metrics.")
         
     except Exception as e:
-        print(f"❌ Mapping Error: {e}")
+        print(f" Mapping Error: {e}")
     finally:
         conn.close()
 
