@@ -1,60 +1,66 @@
+import sqlite3
 import os
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
+import uvicorn
 
-# Modern LangChain Imports (Bypasses the 'chains' module error)
-from langchain_groq import ChatGroq
-from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
-
-load_dotenv()
-
+# Initialize FastAPI app
 app = FastAPI(title="Network Copilot API")
 
-# Load embeddings and vector store once when the app starts
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-vectorstore = FAISS.load_local(
-    "faiss_index", 
-    embeddings, 
-    allow_dangerous_deserialization=True
-)
-
-# Request Model (Pydantic v2)
-class QueryRequest(BaseModel):
+# Define Request/Response Models
+class ChatRequest(BaseModel):
     question: str
 
-@app.post("/chat")
-async def chat_with_copilot(request: QueryRequest):
+# The Diagnostic Tool (Your SQL logic)
+def get_network_diagnostics(device_ip: str = "192.168.1.1"):
     try:
-        llm = ChatGroq(temperature=0, model_name="llama3-8b-8192")
+        db_path = "data/network_ops.db"
+        if not os.path.exists(db_path):
+            return {"error": "Database file not found."}
+            
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
         
-        # Define the prompt
-        prompt = ChatPromptTemplate.from_template("""
-        You are an ISP Support Engineer. Use the context to answer.
-        Context: {context}
-        Question: {question}
-        """)
-
-        # Modern LCEL Chain (Highly recommended for hiring projects)
-        retriever = vectorstore.as_retriever()
+        # 💡 FIX: Use ROWID instead of 'id' since it exists by default
+        cursor.execute('SELECT * FROM network_logs ORDER BY ROWID DESC LIMIT 1')
+        row = cursor.fetchone()
         
-        chain = (
-            {"context": retriever, "question": RunnablePassthrough()}
-            | prompt
-            | llm
-            | StrOutputParser()
-        )
+        cursor.execute("PRAGMA table_info(network_logs)")
+        columns = [col[1] for col in cursor.fetchall()]
+        conn.close()
 
-        response = chain.invoke(request.question)
-        return {"answer": response}
-
+        if row:
+            return dict(zip(columns, row))
+            
+        return {"message": "Table is empty."}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"❌ DATABASE CRASH: {e}")
+        return {"error": str(e)}
+#  The API Endpoint
+@app.post("/chat")
+async def chat_endpoint(request: ChatRequest):
+    diagnostics = get_network_diagnostics()
+    
+    # Check if diagnostics is a dictionary (success) or a string/error
+    if isinstance(diagnostics, dict) and "error" not in diagnostics:
+        status = diagnostics.get('status', 'Active')
+        latency = diagnostics.get('latency_ms', diagnostics.get('latency', 'N/A'))
+        answer = f"I've analyzed your connection. Current status is {status} with {latency} latency."
+    else:
+        answer = "I'm having trouble accessing your real-time network logs right now."
+    
+    return {
+        "status": "success" if "error" not in diagnostics else "error",
+        "data_source": "SQL_Database",
+        "network_health": diagnostics,
+        "answer": answer
+    }
 
+# The Correct Entry Point (Fixed Typos)
 if __name__ == "__main__":
-    import uvicorn
+    print("\n" + "="*40)
+    print(" NETWORK COPILOT API IS STARTING...")
+    print(" Access at: http://localhost:8000/docs")
+    print("="*40 + "\n")
+    
     uvicorn.run(app, host="0.0.0.0", port=8000)
