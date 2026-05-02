@@ -8,24 +8,31 @@ st.set_page_config(page_title="Network Copilot", page_icon="🛰️", layout="wi
 st.title(" Network Copilot Dashboard")
 st.markdown("---")
 
+
+# When running in Docker, use the service name 'backend' defined in docker-compose.yml
+# When running locally (outside Docker), we would use 'localhost'
+API_BASE_URL = "http://backend:8000" 
+
 # This is the Sidebar for Real-Time Metrics & Controls
 st.sidebar.header("Live Telemetry")
 
 def get_live_data():
     try:
-        # Here it Calls the FastAPI backend
-        response = requests.post("http://localhost:8000/chat", json={"question": "status"})
+        # UPDATED: Changed localhost to backend
+        response = requests.post(f"{API_BASE_URL}/chat", json={"question": "status"}, timeout=5)
         return response.json()
-    except:
+    except Exception as e:
+        # Printing the error to the logs helps for debugging
+        print(f"Connection Error: {e}")
         return None
 
 data = get_live_data()
 
-if data and data["status"] == "success":
+if data and data.get("status") == "success":
     metrics = data["network_health"]
     status_label = data.get("status_label", "Healthy")
     
-    # Here i implemented the Dynamic Status Label in Sidebar
+    # Implementation of the Dynamic Status Label in Sidebar
     if status_label == "Healthy":
         st.sidebar.success(f"Current Status: {status_label}")
     elif status_label == "Degraded":
@@ -33,11 +40,11 @@ if data and data["status"] == "success":
     else:
         st.sidebar.error(f"Current Status: {status_label}")
 
-    #  here the Refresh Button
+    # Refresh Button
     if st.sidebar.button(" Refresh Telemetry"):
         st.rerun()
 
-    # This code block help to Download Diagnostic Report
+    # Download Diagnostic Report
     report_text = f"""
     NETWORK DIAGNOSTIC REPORT
     =========================
@@ -55,39 +62,43 @@ if data and data["status"] == "success":
         mime="text/plain"
     )
 
-    #  Visual Status Cards -- It will be seen (Top of Page)
+    # Visual Status Cards
     col1, col2, col3 = st.columns(3)
     col1.metric("Latency", f"{round(metrics.get('latency_ms', 0), 2)} ms")
     col2.metric("Bandwidth", f"{round(metrics.get('bandwidth_mbps', 0), 2)} Mbps")
     col3.metric("Packet Loss", f"{round(metrics.get('packet_loss_rate', 0), 2)} %")
 
 else:
-    st.error("Could not connect to the Network Copilot API. Ensure main.py is running.")
+    st.error("Could not connect to the Network Copilot API. Ensure the backend container is running.")
 
 st.markdown("---")
 
-#  This is my Chat Interface
+# This is the Chat Interface
 st.subheader("Chat with your Network")
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Here it Display chat history
+# It Display's the chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-#  Here we can see the AI reaction (React to user input)
+# Here We implement AI reaction logic
 if prompt := st.chat_input("How is my network performing?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Here we Call the Backend API
+    # Call the Backend API
     with st.chat_message("assistant"):
         try:
-            res = requests.post("http://localhost:8000/chat", json={"question": prompt})
-            answer = res.json()["answer"]
-            st.markdown(answer)
-            st.session_state.messages.append({"role": "assistant", "content": answer})
-        except:
-            st.markdown("I'm having trouble reaching the brain. Is the API server running?")
+            # Here Changed localhost to backend (dockerization)
+            res = requests.post(f"{API_BASE_URL}/chat", json={"question": prompt}, timeout=10)
+            if res.status_code == 200:
+                answer = res.json()["answer"]
+                st.markdown(answer)
+                st.session_state.messages.append({"role": "assistant", "content": answer})
+            else:
+                st.markdown("The backend responded with an error.")
+        except Exception as e:
+            st.markdown(f"I'm having trouble reaching the brain. Error: {e}")

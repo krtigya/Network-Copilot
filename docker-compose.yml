@@ -1,5 +1,4 @@
 services:
-  # Changed 'api' to 'backend' to match your depends_on
   backend:
     build:
       context: .
@@ -8,7 +7,8 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    # Look inside src/api for main.py
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 
   frontend:
     build:
@@ -20,4 +20,5 @@ services:
       - .:/app
     depends_on:
       - backend
-    command: streamlit run app/ui.py --server.port 8501 --server.address 0.0.0.0
+    # Look inside src/ui for app.py
+    command: streamlit run src/ui/app.py --server.port 8501 --server.address 0.0.0.0
