@@ -2,6 +2,8 @@ import sqlite3
 import pandas as pd
 import os
 
+
+
 def import_traffic_to_sql(csv_path):
     if not os.path.exists(csv_path):
         print(f"Error: {csv_path} not found.")

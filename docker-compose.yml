@@ -17,7 +17,7 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - .:/app
+      - ./data:/app/data
     depends_on:
       - backend
     # Look inside src/ui for app.py

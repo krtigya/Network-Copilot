@@ -2,7 +2,7 @@ import pandas as pd
 from langchain_community.document_loaders import DataFrameLoader
 
 def load_csv_data(file_path, content_column):
-    """Loads specific columns from your Kaggle CSVs for the Vector Store."""
+    """Loads specific columns from the Kaggle CSVs for the Vector Store."""
     if os.path.exists(file_path):
         df = pd.read_csv(file_path)
         # We focus on columns like 'Ticket Description' or 'Resolution'

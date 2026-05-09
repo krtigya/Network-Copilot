@@ -18,26 +18,40 @@ class ChatRequest(BaseModel):
 # I Loaded the Knowledge Base (RAG)
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 if os.path.exists("faiss_index"):
-    # this allow_dangerous_deserialization is required for loading local pkl files safely
     vector_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
 else:
     vector_db = None
     print(" Warning: faiss_index folder not found. RAG features will be unavailable.")
 
-def search_manuals(query: str):
-    """This helps to Retrieves technical advice from FAISS vector index."""
-    if not vector_db:
-        return "Network manuals are currently offline. Please check physical hardware."
+# Here is the Function to store chat history with Debugging
+def save_chat(user_query: str, ai_response: str):
+    """Saves the conversation into the chat_history table in network_ops.db."""
     try:
-        # This Retrieve the top 2 most relevant document chunks
+        db_path = "data/network_ops.db"
+        conn = sqlite3.connect(db_path)
+        # We use a cursor to ensure the commit is handled correctly
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO chat_history (user_query, ai_response) VALUES (?, ?)", 
+            (user_query, ai_response)
+        )
+        conn.commit()
+        conn.close()
+        print(f" Chat saved to database: {user_query[:30]}...")
+    except Exception as e:
+        print(f" DATABASE SAVE ERROR: {e}")
+
+def search_manuals(query: str):
+    """Retrieves technical advice from FAISS vector index."""
+    if not vector_db:
+        return "Network manuals are currently offline."
+    try:
         docs = vector_db.similarity_search(query, k=2)
         return " ".join([doc.page_content for doc in docs])
     except Exception as e:
-        print(f"FAISS Search Error: {e}")
-        return "Troubleshooting step: Please restart your router and modem."
+        return f"Troubleshooting step: Check hardware connections. (Error: {e})"
 
-# This is the Diagnostic Tool (SQL Telemetry)
-def get_network_diagnostics(device_ip: str = "192.168.1.1"):
+def get_network_diagnostics():
     try:
         db_path = "data/network_ops.db"
         if not os.path.exists(db_path):
@@ -45,8 +59,6 @@ def get_network_diagnostics(device_ip: str = "192.168.1.1"):
             
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        
-        # This is Use ROW-ID to get the latest telemetry entry from your dataset
         cursor.execute('SELECT * FROM network_logs ORDER BY ROWID DESC LIMIT 1')
         row = cursor.fetchone()
         
@@ -54,61 +66,59 @@ def get_network_diagnostics(device_ip: str = "192.168.1.1"):
         columns = [col[1] for col in cursor.fetchall()]
         conn.close()
 
-        if row:
-            return dict(zip(columns, row))
-            
-        return {"message": "Table is empty."}
+        return dict(zip(columns, row)) if row else {"message": "Table is empty."}
     except Exception as e:
-        print(f" DATABASE CRASH: {e}")
         return {"error": str(e)}
 
-# This is The API Endpoint (Final Agentic Logic)
+# This is the API Endpoint
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
-    # Here I Fetch live telemetry from SQL
     diagnostics = get_network_diagnostics()
     
-    # This is the Extract specific metrics for the reasoning engine
+    # Here I Extract metrics 
     lat = diagnostics.get('latency_ms', 0)
     loss = diagnostics.get('packet_loss_rate', 0)
     bw = diagnostics.get('bandwidth_mbps', 0)
     
-    # IT Search the Knowledge Base for advice
-    raw_advice = search_manuals(request.question)
+    # Here I UPDATE the Logic to handle live data queries vs RAG queries
+    user_q = request.question.lower()
+    if "ip" in user_q or "address" in user_q:
+        advice_content = f"Your current Device IP address is recorded as: **{diagnostics.get('device_ip', 'Unknown')}**."
+    else:
+        raw_advice = search_manuals(request.question)
+        # now co-pilot generates the Formatting advice into a list
+        advice_content = raw_advice.replace(". ", ".\n\n* ")
+        if not advice_content.startswith("* "):
+            advice_content = "* " + advice_content
     
-    # THis is were the FORMATTING FIX: Convert long block of advice into a clean list
-    # This turns "Step 1. Step 2." into a bulleted Markdown list
-    formatted_advice = raw_advice.replace(". ", ".\n\n* ")
-    if not formatted_advice.startswith("* "):
-        formatted_advice = "* " + formatted_advice
-    
-    # Here I implemented Network Engineering Logic
+    # Engineering Logic to make the co-pilot  to label the network status
     if loss > 1.0:
         status_label = "Degraded"
-        reasoning = f"I've detected {round(loss, 2)}% packet loss. This often indicates congestion or hardware issues."
+        reasoning = f"I've detected {round(loss, 2)}% packet loss."
     elif lat > 100:
         status_label = "Lagging"
-        reasoning = f"Your latency is currently high ({round(lat, 2)}ms)."
+        reasoning = f"Your latency is high ({round(lat, 2)}ms)."
     elif bw < 20:
         status_label = "Slow"
-        reasoning = "Your bandwidth speeds are below the expected threshold."
+        reasoning = "Bandwidth speeds are below expected thresholds."
     else:
         status_label = "Healthy"
-        reasoning = "Your network metrics are within optimal parameters."
+        reasoning = "Network metrics are within optimal parameters."
 
-    # This block Return the final intelligent response
+    final_answer = f"Analysis: **{status_label}**. {reasoning} \n\n### Expert Advice\n{advice_content}"
+
+    #this Saves to DB before returning the response
+    save_chat(request.question, final_answer)
+
     return {
         "status": "success",
-        "status_label": status_label,  # Passed to Streamlit for sidebar colors
+        "status_label": status_label,
         "network_health": diagnostics,
-        "answer": f"Analysis: **{status_label}**. {reasoning} \n\n### 📖 Expert Advice\n{formatted_advice}"
+        "answer": final_answer
     }
 
-# This is the Entry Point
 if __name__ == "__main__":
     print("\n" + "="*40)
-    print(" 🛰️  NETWORK COPILOT API IS STARTING...")
-    print(" 🏠 Documentation: http://localhost:8000/docs")
+    print("NETWORK COPILOT API IS STARTING...")
     print("="*40 + "\n")
-    
     uvicorn.run(app, host="0.0.0.0", port=8000)

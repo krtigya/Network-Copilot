@@ -4,6 +4,7 @@ import os
 
 DB_PATH = "data/network_ops.db"
 
+
 def init_db():
     """Creates the tables for real-time network logs and user sessions."""
     os.makedirs("data", exist_ok=True)
