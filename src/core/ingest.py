@@ -1,5 +1,6 @@
 import pandas as pd
 from langchain_community.document_loaders import DataFrameLoader
+import os
 
 def load_csv_data(file_path, content_column):
     """Loads specific columns from the Kaggle CSVs for the Vector Store."""
