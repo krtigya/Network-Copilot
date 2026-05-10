@@ -21,8 +21,6 @@ def simulate_live_traffic():
     try:
         while True:
             status = random.choice(statuses)
-            
-            # Logic: Assign values based on the random status
             if status == 'Online':
                 latency = random.randint(10, 40)
                 bandwidth = round(random.uniform(50.0, 100.0), 2)
@@ -35,9 +33,6 @@ def simulate_live_traffic():
                 latency = 0
                 bandwidth = 0.0
                 packet_loss = 0.0
-
-            # 🛠️ MATCHING YOUR SCHEMA: We only use columns that exist in your DB
-            # We removed customer_id here.
             cursor.execute('''
                 INSERT INTO network_logs (device_ip, status, latency_ms, bandwidth_mbps, packet_loss_rate)
                 VALUES (?, ?, ?, ?, ?)
