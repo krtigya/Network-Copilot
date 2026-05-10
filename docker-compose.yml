@@ -1,24 +1,32 @@
+version: '3.8'
+
 services:
   backend:
     build:
       context: .
       dockerfile: docker/Dockerfile
+    container_name: network_backend
     ports:
       - "8000:8000"
     volumes:
       - .:/app
-    # Look inside src/api for main.py
+    
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 
   frontend:
     build:
       context: .
       dockerfile: docker/Dockerfile
+    container_name: network_frontend
     ports:
       - "8501:8501"
     volumes:
-      - ./data:/app/data
+      - .:/app
     depends_on:
       - backend
-    # Look inside src/ui for app.py
+    
+    environment:
+      - API_URL=http://backend:8000
     command: streamlit run src/ui/app.py --server.port 8501 --server.address 0.0.0.0
+
+    
