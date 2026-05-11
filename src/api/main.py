@@ -4,15 +4,12 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import uvicorn
 
-# LangChain for RAG
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 
 app = FastAPI(title="Network Copilot API")
-
 class ChatRequest(BaseModel):
     question: str
-
 
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
@@ -62,12 +59,11 @@ def get_network_diagnostics():
             return {"error": "DB missing"}
             
         conn = sqlite3.connect(DB_PATH)
-        # Fetch the most recent log
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM network_logs ORDER BY ROWID DESC LIMIT 1')
         row = cursor.fetchone()
         
-        # Dynamically get column names
+        
         cursor.execute("PRAGMA table_info(network_logs)")
         columns = [col[1] for col in cursor.fetchall()]
         conn.close()
@@ -108,7 +104,6 @@ async def chat_endpoint(request: ChatRequest):
     else:
         
         raw_advice = search_manuals(request.question)
-        # Format as a nice bulleted list
         advice_content = raw_advice.replace(". ", ".\n\n* ")
         if not advice_content.startswith("* "):
             advice_content = "* " + advice_content
@@ -145,5 +140,4 @@ async def chat_endpoint(request: ChatRequest):
 if __name__ == "__main__":
     init_db() 
     print("\n" + " NETWORK COPILOT API STARTING".center(40, "="))
-    # Using 127.0.0.1 for local, 0.0.0.0 for Docker
     uvicorn.run(app, host="127.0.0.1", port=8000)
