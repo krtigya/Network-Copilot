@@ -128,7 +128,7 @@ async def chat_endpoint(request: ChatRequest):
         reasoning = "All telemetry metrics are within nominal operating range."
 
     
-    final_answer = f"**Status:** {status_label}\n\n{reasoning}\n\n### 📖 Troubleshooting Advice\n{advice_content}"
+    final_answer = f"**Status:** {status_label}\n\n{reasoning}\n\n### Troubleshooting Advice\n{advice_content}"
 
  
     if "status" not in user_q: 

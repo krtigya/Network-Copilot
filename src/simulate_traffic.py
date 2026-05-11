@@ -19,20 +19,30 @@ def simulate_live_traffic():
     print("Please!! Press Ctrl+C to stop the simulation.")
     
     try:
-        while True:
-            status = random.choice(statuses)
+       while True:
+            # We add a 'Slow' and 'Laggy' choice to the random selector
+            status = random.choice(['Online', 'High Latency', 'Low Bandwidth', 'Congested'])
+            
             if status == 'Online':
                 latency = random.randint(10, 40)
-                bandwidth = round(random.uniform(50.0, 100.0), 2)
-                packet_loss = round(random.uniform(0.0, 0.5), 2)
+                bandwidth = round(random.uniform(70.0, 100.0), 2)
+                packet_loss = round(random.uniform(0.0, 0.3), 2)
+                
             elif status == 'High Latency':
-                latency = random.randint(120, 300)
-                bandwidth = round(random.uniform(5.0, 20.0), 2)
-                packet_loss = round(random.uniform(0.6, 2.0), 2)
-            else: # Offline
-                latency = 0
-                bandwidth = 0.0
-                packet_loss = 0.0
+                latency = random.randint(150, 400) 
+                bandwidth = round(random.uniform(40.0, 60.0), 2)
+                packet_loss = round(random.uniform(0.0, 0.4), 2) 
+                
+            elif status == 'Low Bandwidth':
+                latency = random.randint(20, 50)
+                bandwidth = round(random.uniform(1.0, 15.0), 2)
+                packet_loss = round(random.uniform(0.0, 0.2), 2)
+                
+            else:
+                latency = random.randint(60, 100)
+                bandwidth = round(random.uniform(20.0, 40.0), 2)
+                packet_loss = round(random.uniform(1.5, 5.0), 2)
+
             cursor.execute('''
                 INSERT INTO network_logs (device_ip, status, latency_ms, bandwidth_mbps, packet_loss_rate)
                 VALUES (?, ?, ?, ?, ?)
