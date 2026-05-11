@@ -34,7 +34,7 @@ with st.sidebar:
     if not history_df.empty:
         for _, row in history_df.iterrows():
             if st.button(f" {row['user_query'][:25]}...", key=f"chat_{row['id']}", use_container_width=True):
-                # When a history item is clicked, load it into the main view
+                
                 st.session_state.messages = [
                     {"role": "user", "content": row['user_query']},
                     {"role": "assistant", "content": row['ai_response']}
